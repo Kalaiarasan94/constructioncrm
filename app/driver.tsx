@@ -1,66 +1,20 @@
 import React, { useState } from 'react';
 import { ScrollView, Text, View, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
-import axios from 'axios';
-
-// ==========================================
-// 1. EMBEDDED API CLIENT LAYER
-// ==========================================
-const COMPUTER_IP_ADDRESS = '192.168.1.20'; 
-const API_BASE_URL = `http://${COMPUTER_IP_ADDRESS}:5000/api`;
-
-const localApiClient = {
-  async logMaterialDelivery(payload: {
-    siteId: number;
-    materialType: string;
-    quantity: string;
-    supplierName: string;
-    vehicleNumber: string;
-    driverName: string;
-    date: string;
-  }) {
-    return (await axios.post(`${API_BASE_URL}/expenses`, {
-      siteId: payload.siteId,
-      type: 'DEBIT',
-      category: 'Material',
-      description: `Delivery: ${payload.quantity} of ${payload.materialType} via ${payload.vehicleNumber} (${payload.supplierName})`,
-      amount: 0, // Left at 0 for Admin to update via official invoice later
-      date: payload.date,
-      supervisorName: payload.driverName
-    })).data;
-  },
-
-  async logFuelRefill(payload: {
-    siteId: number;
-    vehicleNumber: string;
-    fuelLiters: number;
-    amountPaid: number;
-    date: string;
-    driverName: string;
-  }) {
-    return (await axios.post(`${API_BASE_URL}/expenses`, {
-      siteId: payload.siteId,
-      type: 'DEBIT',
-      category: 'Fuel',
-      description: `Fuel Refill: ${payload.fuelLiters}L for ${payload.vehicleNumber}`,
-      amount: payload.amountPaid,
-      date: payload.date,
-      supervisorName: payload.driverName
-    })).data;
-  }
-};
+import { fieldService } from '../services/api';
 
 // ==========================================
 // 2. DRIVER MODULE USER INTERFACE
 // ==========================================
 export default function DriverLogScreen() {
   const router = useRouter();
+  const { name: paramName, userId } = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState<'material' | 'fuel'>('material');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Shared Core Identities
-  const [driverName, setDriverName] = useState('');
+  const [driverName, setDriverName] = useState((paramName as string) || '');
   const [vehicleNumber, setVehicleNumber] = useState('');
 
   // Material Flow Sub-States
@@ -80,17 +34,17 @@ export default function DriverLogScreen() {
 
     try {
       setIsSubmitting(true);
-      await localApiClient.logMaterialDelivery({
-        siteId: 1, // Maps to your active Project site ID
-        materialType,
-        quantity,
-        supplierName: supplierName || 'Direct Cash Procurement',
-        vehicleNumber,
-        driverName,
+      await fieldService.logExpense({
+        siteId: 1, // Defaulting to 1 as per original logic, or you could pass siteId via params
+        userId: userId,
+        type: 'DEBIT',
+        category: 'Material',
+        description: `Delivery: ${quantity} of ${materialType} via ${vehicleNumber} (${supplierName || 'Direct Cash Procurement'})`,
+        amount: 0, 
         date: new Date().toISOString().split('T')[0]
       });
 
-      Alert.alert('Success', 'Material delivery entry successfully synced with PostgreSQL.');
+      Alert.alert('Success', 'Material delivery entry successfully synced with Database.');
       clearForm();
     } catch (error: any) {
       Alert.alert('Connection Failure', error.message || 'Could not dispatch data to backend server.');
@@ -107,16 +61,17 @@ export default function DriverLogScreen() {
 
     try {
       setIsSubmitting(true);
-      await localApiClient.logFuelRefill({
+      await fieldService.logExpense({
         siteId: 1,
-        vehicleNumber,
-        fuelLiters: parseFloat(fuelLiters),
-        amountPaid: parseFloat(amountPaid),
-        driverName,
+        userId: userId,
+        type: 'DEBIT',
+        category: 'Fuel',
+        description: `Fuel Refill: ${fuelLiters}L for ${vehicleNumber}`,
+        amount: parseFloat(amountPaid),
         date: new Date().toISOString().split('T')[0]
       });
 
-      Alert.alert('Success', 'Fuel voucher debit logged into PostgreSQL.');
+      Alert.alert('Success', 'Fuel voucher debit logged into Database.');
       clearForm();
     } catch (error: any) {
       Alert.alert('Connection Failure', error.message || 'Could not dispatch data to backend server.');

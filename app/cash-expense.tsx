@@ -5,7 +5,7 @@ import { fieldService } from '../services/api';
 
 export default function CashExpenseScreen() {
   const router = useRouter();
-  const { siteId, siteName } = useLocalSearchParams();
+  const { siteId, siteName, userId } = useLocalSearchParams();
   const [description, setDescription] = useState('');
   const [cost, setCost] = useState('');
   const [loading, setLoading] = useState(false);
@@ -32,6 +32,7 @@ export default function CashExpenseScreen() {
     try {
       await fieldService.logExpense({
         siteId: siteId,
+        userId: userId,
         type: 'DEBIT',
         category: 'Petty Cash',
         description: description,

@@ -80,8 +80,9 @@ export default function SupervisorDashboard() {
       const ledger = await fieldService.getLedgerBySite(selectedSite.id);
       
       // Calculate Site Expenses (DEBIT) specifically for this user at this site
+      // Use == to allow string/number comparison for ID safety
       const expenses = ledger
-        .filter((item: any) => item.type === 'DEBIT' && Number(item.user_id) === Number(userId))
+        .filter((item: any) => item.type === 'DEBIT' && item.user_id == userId)
         .reduce((sum: number, item: any) => sum + parseFloat(item.amount), 0);
       
       setSiteExpenses(expenses);

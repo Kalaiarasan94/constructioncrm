@@ -156,6 +156,8 @@ export const adminController = {
           COALESCE(SUM(IF(l.category NOT IN ('Fuel', 'Petty Cash'), l.amount, 0)), 0) as material_costs,
           COALESCE(SUM(IF(l.category = 'Fuel', l.amount, 0)), 0) as fuel_costs,
           COALESCE(SUM(IF(l.category = 'Petty Cash', l.amount, 0)), 0) as petty_cash_costs,
+          COALESCE(SUM(IF(l.payment_mode = 'Direct', l.amount, 0)), 0) as direct_expenses,
+          COALESCE(SUM(IF(l.payment_mode = 'Indirect', l.amount, 0)), 0) as indirect_expenses,
           COALESCE(SUM(l.amount), 0) as total_expenses
         FROM sites s
         LEFT JOIN ledger l ON s.id = l.site_id AND l.type = 'DEBIT'

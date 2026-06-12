@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, Text, View, TextInput, TouchableOpacity, Alert, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
+import { ScrollView, Text, View, TextInput, TouchableOpacity, Alert, StyleSheet, Dimensions, ActivityIndicator, Image } from 'react-native';
 import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
 import { adminService, fieldService } from '../services/api';
@@ -21,9 +21,17 @@ interface Site {
   supervisor_name?: string;
 }
 
+interface Lead {
+  id: string;
+  name: string;
+  project_needed: string;
+  source: string;
+  status: 'Hot Lead' | 'In Discussion' | 'Converted Client';
+}
+
 export default function AdminPanelScreen() {
   const router = useRouter();
-  const [currentTab, setCurrentTab] = useState<'ANALYTICS' | 'CRM_LEADS' | 'STAFF_HR' | 'ALLOCATIONS' | 'ADVANCES'>('ANALYTICS');
+  const [currentTab, setCurrentTab] = useState<'ANALYTICS' | 'CRM_LEADS' | 'STAFF_HR' | 'ALLOCATIONS' | 'ADVANCES' | 'REPORTS'>('ANALYTICS');
   const [loading, setLoading] = useState(false);
 
   // ---- STAFF HR STATE ----
@@ -56,6 +64,10 @@ export default function AdminPanelScreen() {
   const [selectedSiteLedger, setSelectedSiteLedger] = useState<any[]>([]);
   const [activeLedgerSite, setActiveLedgerSite] = useState<string | null>(null);
 
+  // ---- REPORTS STATE ----
+  const [reportSiteId, setReportSiteId] = useState<string | null>(null);
+  const [reportData, setReportData] = useState<any[]>([]);
+
   useEffect(() => {
     if (currentTab === 'ANALYTICS') {
       fetchAnalytics();
@@ -63,13 +75,32 @@ export default function AdminPanelScreen() {
       fetchStaff();
     } else if (currentTab === 'CRM_LEADS') {
       fetchLeads();
-    } else if (currentTab === 'ALLOCATIONS') {
+    } else if (currentTab === 'ALLOCATIONS' || currentTab === 'REPORTS') {
       fetchSites();
       fetchStaff();
     } else if (currentTab === 'ADVANCES') {
       fetchAdvanceRequests();
     }
   }, [currentTab]);
+
+  useEffect(() => {
+    if (currentTab === 'REPORTS' && reportSiteId) {
+      fetchReportData();
+    }
+  }, [reportSiteId, currentTab]);
+
+  const fetchReportData = async () => {
+    if (!reportSiteId) return;
+    setLoading(true);
+    try {
+      const data = await fieldService.getLedgerBySite(reportSiteId);
+      setReportData(data);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to fetch report data.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchAnalytics = async () => {
     setLoading(true);
@@ -319,6 +350,7 @@ export default function AdminPanelScreen() {
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {[
               { id: 'ANALYTICS', label: 'Dashboard', icon: 'dashboard' },
+              { id: 'REPORTS', label: 'Reports', icon: 'description' },
               { id: 'CRM_LEADS', label: 'CRM Leads', icon: 'people' },
               { id: 'STAFF_HR', label: 'Staff & Credentials', icon: 'badge' },
               { id: 'ADVANCES', label: 'Advances', icon: 'payments' },
@@ -387,11 +419,27 @@ export default function AdminPanelScreen() {
                       
                       {activeLedgerSite === exp.id && (
                         <View style={{ marginTop: 12, backgroundColor: '#F8FAFC', padding: 10, borderRadius: 8 }}>
-                          <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#64748B', marginBottom: 8 }}>RECENT BILLS / EXPENSES</Text>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#CBD5E1' }}>
+                            <View>
+                              <Text style={{ fontSize: 9, color: '#64748B', fontWeight: 'bold' }}>DIRECT (CASH)</Text>
+                              <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#10B981' }}>₹{Number(exp.direct_expenses).toLocaleString()}</Text>
+                            </View>
+                            <View style={{ alignItems: 'flex-end' }}>
+                              <Text style={{ fontSize: 9, color: '#64748B', fontWeight: 'bold' }}>INDIRECT (CREDIT)</Text>
+                              <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#6366F1' }}>₹{Number(exp.indirect_expenses).toLocaleString()}</Text>
+                            </View>
+                          </View>
+
+                          <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#64748B', marginBottom: 8 }}>RECENT BILLS / EXPENSES</Text>
                           {selectedSiteLedger.slice(0, 5).map((item: any) => (
-                            <View key={item.id} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', pb: 4 }}>
+                            <View key={item.id} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', paddingBottom: 4 }}>
                               <View style={{ flex: 1 }}>
-                                <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#0F172A' }}>{item.category}</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                  <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#0F172A' }}>{item.category}</Text>
+                                  <View style={{ backgroundColor: item.payment_mode === 'Direct' ? '#DCFCE7' : '#EEF2FF', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 }}>
+                                    <Text style={{ fontSize: 7, fontWeight: 'bold', color: item.payment_mode === 'Direct' ? '#166534' : '#4338CA' }}>{item.payment_mode?.toUpperCase()}</Text>
+                                  </View>
+                                </View>
                                 <Text style={{ fontSize: 10, color: '#64748B' }} numberOfLines={1}>{item.description}</Text>
                               </View>
                               <Text style={{ fontSize: 11, fontWeight: 'bold', color: item.type === 'CREDIT' ? '#10B981' : '#0F172A' }}>
@@ -415,6 +463,101 @@ export default function AdminPanelScreen() {
                 <FontAwesome5 name="chart-line" size={40} color="#38BDF8" />
                 <Text style={{ color: '#FFF', fontWeight: 'bold', marginTop: 12 }}>Detailed Reports coming soon</Text>
             </View>
+          </View>
+        )}
+
+        {/* ================= WORKSPACE: REPORTS (EXPENSES WITH IMAGES) ================= */}
+        {currentTab === 'REPORTS' && (
+          <View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0F172A' }}>Expense Reports</Text>
+              <TouchableOpacity 
+                style={{ backgroundColor: '#10B981', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                onPress={() => Alert.alert("Print Feature", "PDF generation requires a system printer or additional plugin. Displaying list for review.")}
+              >
+                <MaterialIcons name="picture-as-pdf" size={16} color="#FFF" />
+                <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 11 }}>EXPORT</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#64748B', marginBottom: 8 }}>FILTER BY PROJECT SITE</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {sitesList.map((site) => (
+                  <TouchableOpacity 
+                    key={site.id} 
+                    style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: reportSiteId === site.id ? '#0F172A' : '#E2E8F0' }} 
+                    onPress={() => setReportSiteId(site.id)}
+                  >
+                    <Text style={{ fontSize: 11, color: reportSiteId === site.id ? '#FFF' : '#475569', fontWeight: 'bold' }}>{site.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+
+            {loading ? (
+              <ActivityIndicator size="large" color="#0F172A" />
+            ) : reportSiteId ? (
+              <View>
+                {/* Table Header */}
+                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+                   <View style={{ flex: 1, backgroundColor: '#064E3B', padding: 8, borderRadius: 6, alignItems: 'center' }}>
+                      <Text style={{ color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>DIRECT (CASH)</Text>
+                   </View>
+                   <View style={{ flex: 1, backgroundColor: '#312E81', padding: 8, borderRadius: 6, alignItems: 'center' }}>
+                      <Text style={{ color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>INDIRECT (CREDIT)</Text>
+                   </View>
+                </View>
+
+                {/* Table Content */}
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  {/* Column 1: Direct */}
+                  <View style={{ flex: 1 }}>
+                    {reportData.filter(i => i.type === 'DEBIT' && i.payment_mode === 'Direct').length > 0 ? (
+                      reportData.filter(i => i.type === 'DEBIT' && i.payment_mode === 'Direct').map((item) => (
+                        <View key={item.id} style={{ backgroundColor: '#FFF', padding: 8, borderRadius: 10, marginBottom: 10, elevation: 1, borderWidth: 1, borderColor: '#DCFCE7' }}>
+                          <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#0F172A' }}>{item.category}</Text>
+                          <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#166534', marginVertical: 2 }}>₹{Number(item.amount).toLocaleString()}</Text>
+                          <Text style={{ fontSize: 9, color: '#64748B' }}>{new Date(item.date).toLocaleDateString()}</Text>
+                          {item.image_url && (
+                            <View style={{ marginTop: 6, borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 6 }}>
+                              <Image source={{ uri: item.image_url }} style={{ width: '100%', height: 100, borderRadius: 6 }} resizeMode="cover" />
+                            </View>
+                          )}
+                        </View>
+                      ))
+                    ) : (
+                      <Text style={{ fontSize: 10, color: '#94A3B8', textAlign: 'center', marginTop: 10 }}>No cash bills.</Text>
+                    )}
+                  </View>
+
+                  {/* Column 2: Indirect */}
+                  <View style={{ flex: 1 }}>
+                    {reportData.filter(i => i.type === 'DEBIT' && i.payment_mode === 'Indirect').length > 0 ? (
+                      reportData.filter(i => i.type === 'DEBIT' && i.payment_mode === 'Indirect').map((item) => (
+                        <View key={item.id} style={{ backgroundColor: '#FFF', padding: 8, borderRadius: 10, marginBottom: 10, elevation: 1, borderWidth: 1, borderColor: '#EEF2FF' }}>
+                          <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#0F172A' }}>{item.category}</Text>
+                          <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#4338CA', marginVertical: 2 }}>₹{Number(item.amount).toLocaleString()}</Text>
+                          <Text style={{ fontSize: 9, color: '#64748B' }}>{new Date(item.date).toLocaleDateString()}</Text>
+                          {item.image_url && (
+                            <View style={{ marginTop: 6, borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 6 }}>
+                              <Image source={{ uri: item.image_url }} style={{ width: '100%', height: 100, borderRadius: 6 }} resizeMode="cover" />
+                            </View>
+                          )}
+                        </View>
+                      ))
+                    ) : (
+                      <Text style={{ fontSize: 10, color: '#94A3B8', textAlign: 'center', marginTop: 10 }}>No credit bills.</Text>
+                    )}
+                  </View>
+                </View>
+              </View>
+            ) : (
+              <View style={{ alignItems: 'center', marginTop: 40 }}>
+                <MaterialIcons name="touch-app" size={48} color="#CBD5E1" />
+                <Text style={{ color: '#94A3B8', marginTop: 12 }}>Select a site above to view detailed reports.</Text>
+              </View>
+            )}
           </View>
         )}
 

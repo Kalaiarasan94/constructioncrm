@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS ledger (
     amount DECIMAL(15, 2) NOT NULL,
     payment_mode ENUM('Direct', 'Indirect') DEFAULT 'Direct',
     is_gst BOOLEAN DEFAULT FALSE,
+    image_url TEXT NULL,
     date DATE NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (site_id) REFERENCES sites(id) ON DELETE CASCADE,
@@ -100,7 +101,7 @@ CREATE TABLE IF NOT EXISTS advance_requests (
     user_id INT NOT NULL,
     amount DECIMAL(15, 2) NOT NULL,
     reason TEXT,
-    status ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING',
+    status ENUM('PENDING', 'APPROVED', 'REJECTED', 'PAID') DEFAULT 'PENDING',
     date DATE NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

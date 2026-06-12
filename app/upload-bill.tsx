@@ -18,7 +18,7 @@ interface BillItem {
 
 export default function UploadBill() {
   const router = useRouter();
-  const { siteId, siteName } = useLocalSearchParams();
+  const { siteId, siteName, userId } = useLocalSearchParams();
   const [vendorName, setVendorName] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('Cement');
@@ -115,12 +115,14 @@ export default function UploadBill() {
       for (const bill of billsList) {
         await fieldService.logExpense({
           siteId: siteId,
+          userId: userId,
           type: 'DEBIT',
           category: bill.category,
           description: `Vendor: ${bill.vendorName} (${bill.paymentMode})${bill.isGst ? ' [GST]' : ''}`,
           amount: parseFloat(bill.amount),
           paymentMode: bill.paymentMode,
           isGst: bill.isGst,
+          imageUrl: bill.imageUri,
           date: new Date().toISOString().split('T')[0]
         });
       }

@@ -17,7 +17,12 @@ export const db = {
    * mysql2 returns an array: [rows, fields]. We return just the rows to keep usage clean.
    */
   query: async (sql: string, params?: any[]): Promise<any> => {
-    const [rows] = await pool.execute(sql, params);
-    return { rows: rows as any[] };
+    try {
+      const [rows] = await pool.execute(sql, params);
+      return { rows: rows as any[] };
+    } catch (error) {
+      console.error('Database Query Error:', { sql, params, error });
+      throw error;
+    }
   }
 };
